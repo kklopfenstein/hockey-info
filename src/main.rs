@@ -1,7 +1,19 @@
 use chrono::{DateTime, Local, Offset, Utc, NaiveDate};
+use clap::Parser;
 use reqwest::Client;
 use serde::Deserialize;
 
+
+#[derive(Parser)]
+#[command(name = "nhl-schedule")]
+#[command(author = "kklopfenstein")]
+#[command(version = "0.1.0")]
+#[command(about = "Display NHL schedule for the next N days")]
+struct Args {
+    /// Number of days to display (default: 7)
+    #[arg(short, long, default_value_t = 7u32)]
+    days: u32,
+}
 
 #[derive(Debug, Deserialize)]
 struct NhlScoreboardResponse {
@@ -254,11 +266,11 @@ fn format_game(game: &Game) -> String {
     result
 }
 
-fn display_schedule(games: &[Game]) {
+fn display_schedule(games: &[Game], days: u32) {
     let (utc, offset_str) = get_local_timezone();
 
     if games.is_empty() {
-        println!("No games found for the next 7 days.");
+        println!("No games found for the next {} days.", days);
         return;
     }
 
@@ -279,9 +291,9 @@ fn display_schedule(games: &[Game]) {
     }
 }
 
-fn get_games_for_next_7_days(games: Vec<Game>) -> Vec<Game> {
+fn get_games_for_next_days(games: Vec<Game>, days: u32) -> Vec<Game> {
     let now = Local::now();
-    let cutoff = now + chrono::Duration::days(7);
+    let cutoff = now + chrono::Duration::days(days as i64);
 
     games.into_iter()
         .filter(|game| {
@@ -328,8 +340,10 @@ async fn fetch_nhl_schedule() -> Result<Vec<Game>, String> {
 }
 
 fn main() {
+    let args = Args::parse();
+    
     let runtime = tokio::runtime::Runtime::new().unwrap();
-    let games = runtime.block_on(async {
+    let _games = runtime.block_on(async {
         match fetch_nhl_schedule().await {
             Ok(g) => g,
             Err(e) => {
@@ -339,8 +353,8 @@ fn main() {
         }
     });
 
-    let filtered_games = get_games_for_next_7_days(games);
-    display_schedule(&filtered_games);
+    let filtered_games = get_games_for_next_days(_games, args.days);
+    display_schedule(&filtered_games, args.days);
 }
 
 #[cfg(test)]
@@ -470,8 +484,8 @@ mod tests {
             },
         ];
 
-        let filtered = get_games_for_next_7_days(mock_games);
-        assert_eq!(filtered.len(), 1);
+        let filtered = get_games_for_next_days(mock_games, 14);
+        assert_eq!(filtered.len(), 2);
         assert_eq!(filtered[0].game_id, "2");
     }
 

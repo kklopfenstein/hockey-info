@@ -188,6 +188,11 @@ impl Game {
         } else {
             None
         };
+        let city = if let Some(ref venue) = event.venue {
+            venue.city.as_ref().map(|s| s.as_str().to_string())
+        } else {
+            None
+        };
 
         Some(Game {
             game_id: event.id.clone().unwrap_or_default(),
@@ -201,9 +206,9 @@ impl Game {
             home_market: None,
             away_market: None,
             venue: venue_name,
-            city: None,
+            city,
             game_number: event.game_number.clone(),
-            group_name: None,
+            group_name: event.groups.as_ref().and_then(|g| g.name.as_ref().map(|s| s.as_str().to_string())),
         })
     }
 }
@@ -341,11 +346,11 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{TimeZone, NaiveDate};
+ 
 
     #[test]
     fn test_date_parsing() {
-        let date_str = "20250115";
+        let _date_str = "20250115";
         let parsed = DateTime::parse_from_rfc3339(&format!("2025-01-15T00:00:00Z"))
             .unwrap()
             .with_timezone(&Local);
@@ -373,7 +378,7 @@ mod tests {
                         short_name: Some("TOR".to_string()),
                         market: Some("Toronto".to_string()),
                     }),
-                    home: Some(false),
+                    home: Some("home".to_string()),
                 },
                 Competitor {
                     id: None,
@@ -383,7 +388,7 @@ mod tests {
                         short_name: Some("MTL".to_string()),
                         market: Some("Montreal".to_string()),
                     }),
-                    home: Some(true),
+                    home: Some("away".to_string()),
                 },
             ]),
             venue: Some(Venue {
@@ -399,8 +404,8 @@ mod tests {
         };
 
         let game = Game::from_event(&mock_event).expect("Failed to create game from event");
-        assert_eq!(game.away_team, "Toronto Maple Leafs");
-        assert_eq!(game.home_team, "Montreal Canadiens");
+        assert_eq!(game.away_team, "Montreal Canadiens");
+        assert_eq!(game.home_team, "Toronto Maple Leafs");
         assert_eq!(game.date_str, "2025-01-15");
         assert_eq!(game.venue, Some("Bell Centre".to_string()));
         assert_eq!(game.city, Some("Montreal".to_string()));
